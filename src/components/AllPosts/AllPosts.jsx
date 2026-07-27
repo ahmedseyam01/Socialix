@@ -84,3 +84,30 @@ export async function createPostApi(body, image = null) {
     return err.response?.data || { message: err.message || "Network Error" };
   }
 }
+
+// Toggle like on a post — returns { liked, likesCount }
+export async function togglePostLike(postId) {
+  try {
+    const { data } = await axios.put(
+      `https://route-posts.routemisr.com/posts/${postId}/like`,
+      {},
+      { headers: { token: localStorage.getItem("token") } }
+    );
+    return data;
+  } catch (err) {
+    return err.response?.data || { message: err.message || "Network Error" };
+  }
+}
+
+// Fetch the list of users who liked a post — returns meta.pagination.total for count
+export async function getPostLikes(postId, page = 1, limit = 20) {
+  try {
+    const { data } = await axios.get(
+      `https://route-posts.routemisr.com/posts/${postId}/likes?page=${page}&limit=${limit}`,
+      { headers: { token: localStorage.getItem("token") } }
+    );
+    return data;
+  } catch (err) {
+    return err.response?.data || { message: err.message || "Network Error" };
+  }
+}

@@ -3,12 +3,12 @@ import { useContext, useState, useEffect } from "react";
 import { AuthContext, DEFAULT_API_AVATAR } from "../../Context/AuthContext";
 
 /**
- * UserAvatar - Reusable avatar component with automatic image error fallback
- * 
- * @param {object} user  - user object { name, photo }
- * @param {string} size  - "sm" | "md" | "lg" | "xl" (default: "md")
- * @param {string} className - extra classes
- * @param {boolean} showSkeleton - whether to show skeleton while loading (default: false)
+ * UserAvatar - Reusable avatar component with automatic image error fallback.
+ *
+ * @param {object}  user         - user object { _id, id, name, photo }
+ * @param {string}  size         - "sm" | "md" | "lg" | "xl" (default: "md")
+ * @param {string}  className    - extra classes
+ * @param {boolean} showSkeleton - show skeleton while profile is loading
  */
 export default function UserAvatar({ user, size = "md", className = "", showSkeleton = false }) {
   const { userProfile, isProfileLoading } = useContext(AuthContext);
@@ -20,32 +20,25 @@ export default function UserAvatar({ user, size = "md", className = "", showSkel
     lg: "w-12 h-12",
     xl: "w-[52px] h-[52px]",
   };
-
   const currentSizeClass = sizeMapping[size] || sizeMapping.md;
 
-  const isPhotoRemoved = typeof window !== "undefined" && localStorage.getItem("user_profile_photo_removed") === "true";
+  // ── Match by ID only — name/email matching is too broad and causes wrong photos ──
+  const userId   = user?._id  || user?.id  || null;
+  const myId     = userProfile?._id || userProfile?.id || null;
+  const isMe     = !!userId && !!myId && userId === myId;
 
-  // Check if the user object represents the current logged-in user
-  const isCurrentLoggedInUser =
-    userProfile &&
-    (!user ||
-      user._id === userProfile.id ||
-      user._id === userProfile._id ||
-      user.id === userProfile.id ||
-      user.id === userProfile._id ||
-      user.name === userProfile.name ||
-      user.email === userProfile.email);
+  // Decide which data to display
+  // • If this avatar IS the current logged-in user → always use live context photo
+  // • Otherwise → use the photo that came with the user object from the API
+  const displayName  = isMe ? (userProfile?.name  || user?.name  || "User") : (user?.name  || "User");
+  const displayPhoto = isMe ? (userProfile?.photo || DEFAULT_API_AVATAR)    : (user?.photo || DEFAULT_API_AVATAR);
 
-  let userName = (isCurrentLoggedInUser ? userProfile?.name : user?.name) || "User";
-  let userPhoto = isCurrentLoggedInUser
-    ? (isPhotoRemoved ? DEFAULT_API_AVATAR : (userProfile?.photo || user?.photo || DEFAULT_API_AVATAR))
-    : (user?.photo || DEFAULT_API_AVATAR);
-
+  // Reset error state whenever the resolved photo URL changes
   useEffect(() => {
     setImgError(false);
-  }, [userPhoto]);
+  }, [displayPhoto]);
 
-  const finalPhoto = imgError ? DEFAULT_API_AVATAR : (userPhoto || DEFAULT_API_AVATAR);
+  const finalPhoto = imgError ? null : (displayPhoto || null);
 
   return (
     <>
@@ -55,7 +48,7 @@ export default function UserAvatar({ user, size = "md", className = "", showSkel
         <div className={`${currentSizeClass} shrink-0`}>
           <Avatar
             src={finalPhoto}
-            name={userName.charAt(0).toUpperCase()}
+            name={displayName.charAt(0).toUpperCase()}
             className={`${showSkeleton ? "w-full h-full" : currentSizeClass} ${className}`}
             isBordered
             color="success"

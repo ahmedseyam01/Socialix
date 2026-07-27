@@ -7,17 +7,13 @@ export const AuthContext = createContext();
 
 export default function AuthContextProvider({ children }) {
   const [isLoggedIn, setisLoggedIn] = useState(localStorage.getItem("token") != null);
+
+  // Start from token payload as a quick initial value (no photo in JWT usually)
   const [userProfile, setUserProfile] = useState(() => {
     const decoded = getDecodedTokenProfile();
-    const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
-    if (decoded) {
-      return {
-        ...decoded,
-        photo: isPhotoRemoved ? DEFAULT_API_AVATAR : (decoded.photo || DEFAULT_API_AVATAR),
-      };
-    }
-    return null;
+    return decoded ? { ...decoded, photo: decoded.photo || DEFAULT_API_AVATAR } : null;
   });
+
   const [isProfileLoading, setIsProfileLoading] = useState(isLoggedIn);
 
   useEffect(() => {
@@ -25,17 +21,17 @@ export default function AuthContextProvider({ children }) {
       fetchUserProfileAPI()
         .then((fetchedUser) => {
           if (fetchedUser) {
-            const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
-            const effectivePhoto = isPhotoRemoved
-              ? DEFAULT_API_AVATAR
-              : (fetchedUser.photo || fetchedUser.profilePic || fetchedUser.image || DEFAULT_API_AVATAR);
+            // Always trust the photo that comes from the API — it is the source of truth
+            const apiPhoto = fetchedUser.photo || fetchedUser.profilePic || fetchedUser.image || DEFAULT_API_AVATAR;
 
             setUserProfile((prev) => ({
               ...prev,
-              id: fetchedUser._id || fetchedUser.id || prev?.id,
-              name: fetchedUser.name || fetchedUser.username || prev?.name,
+              _id:      fetchedUser._id  || fetchedUser.id  || prev?._id,
+              id:       fetchedUser.id   || fetchedUser._id || prev?.id,
+              name:     fetchedUser.name || fetchedUser.username || prev?.name,
               username: fetchedUser.username || prev?.username,
-              photo: effectivePhoto,
+              email:    fetchedUser.email    || prev?.email,
+              photo:    apiPhoto,
             }));
           }
         })
@@ -55,5 +51,9 @@ export default function AuthContextProvider({ children }) {
     }
   }, [isLoggedIn]);
 
-  return <AuthContext.Provider value={{ isLoggedIn, setisLoggedIn, userProfile, isProfileLoading, setUserProfile }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ isLoggedIn, setisLoggedIn, userProfile, setUserProfile, isProfileLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

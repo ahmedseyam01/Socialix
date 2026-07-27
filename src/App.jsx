@@ -12,7 +12,7 @@ import Auth from "./components/Layout/Auth";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider } from "@heroui/react";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
-import AuhProtectedRoute from "./components/AuhtProtectedRoute/AuthProtectedRoute";
+import AuhProtectedRoute from "./components/AuthProtectedRoute/AuthProtectedRoute";
 
 const routers = createBrowserRouter([
   {

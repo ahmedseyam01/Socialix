@@ -22,18 +22,21 @@ export default function UserAvatar({ user, size = "md", className = "", showSkel
   };
   const currentSizeClass = sizeMapping[size] || sizeMapping.md;
 
-  // ── Match by ID only — name/email matching is too broad and causes wrong photos ──
-  const userId   = user?._id  || user?.id  || null;
-  const myId     = userProfile?._id || userProfile?.id || null;
-  const isMe     = !!userId && !!myId && userId === myId;
+  // Determine if the passed user represents the logged-in user
+  const userId = user?._id || user?.id || null;
+  const myId   = userProfile?._id || userProfile?.id || null;
 
-  // Decide which data to display
-  // • If this avatar IS the current logged-in user → always use live context photo
-  // • Otherwise → use the photo that came with the user object from the API
+  const isMe = !user ||
+    (!!userId && !!myId && userId === myId) ||
+    (!!userProfile && !!user?.name && user.name === userProfile.name);
+
+  // Derive name and photo
   const displayName  = isMe ? (userProfile?.name  || user?.name  || "User") : (user?.name  || "User");
-  const displayPhoto = isMe ? (userProfile?.photo || DEFAULT_API_AVATAR)    : (user?.photo || DEFAULT_API_AVATAR);
+  const displayPhoto = isMe
+    ? (userProfile?.photo || user?.photo || DEFAULT_API_AVATAR)
+    : (user?.photo || DEFAULT_API_AVATAR);
 
-  // Reset error state whenever the resolved photo URL changes
+  // Reset error state whenever resolved photo URL changes
   useEffect(() => {
     setImgError(false);
   }, [displayPhoto]);

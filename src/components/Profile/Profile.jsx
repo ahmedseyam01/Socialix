@@ -63,17 +63,23 @@ export default function Profile() {
     } else {
       getMyProfileApi().then((res) => {
         const user = res?.data?.user || res?.user || res;
-        const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
         const savedCover = localStorage.getItem("user_cover_banner");
-
-        const effectivePhoto = isPhotoRemoved ? DEFAULT_API_AVATAR : (user?.photo || DEFAULT_API_AVATAR);
         const myId = user?._id || user?.id || userProfile?.id || userProfile?._id;
+
+        // Always trust the photo from the API — it is the source of truth
+        const apiPhoto = user?.photo || DEFAULT_API_AVATAR;
 
         setProfile({
           ...user,
-          photo: effectivePhoto,
+          photo: apiPhoto,
           coverPhoto: savedCover || user?.coverPhoto || "",
         });
+
+        // Keep AuthContext in sync with the live API photo
+        if (setUserProfile) {
+          setUserProfile((prev) => ({ ...prev, photo: apiPhoto }));
+        }
+
         setLoading(false);
 
         if (myId) {
@@ -142,6 +148,7 @@ export default function Profile() {
     setUploadMsg(null);
     setImgError(false);
 
+    // Clear stale flags
     localStorage.removeItem("user_profile_photo_removed");
 
     const res = await uploadProfilePhotoApi(file);
@@ -218,7 +225,8 @@ export default function Profile() {
     setUploadMsg(null);
     setImgError(false);
 
-    localStorage.setItem("user_profile_photo_removed", "true");
+    // Clear any stale localStorage flag
+    localStorage.removeItem("user_profile_photo_removed");
 
     try {
       await removeProfilePhotoApi();
@@ -226,9 +234,15 @@ export default function Profile() {
       console.log("Remove photo API error:", e);
     }
 
-    setProfile((prev) => ({ ...prev, photo: DEFAULT_API_AVATAR }));
+    // Refetch from API so we get the real default avatar URL the server set
+    const refreshed = await getMyProfileApi();
+    const refreshedUser = refreshed?.data?.user || refreshed?.user || null;
+    const resetPhoto = refreshedUser?.photo || DEFAULT_API_AVATAR;
+
+    setImgError(false);
+    setProfile((prev) => ({ ...prev, photo: resetPhoto }));
     if (setUserProfile) {
-      setUserProfile((prev) => ({ ...prev, photo: DEFAULT_API_AVATAR }));
+      setUserProfile((prev) => ({ ...prev, photo: resetPhoto }));
     }
 
     setUploading(false);
@@ -401,9 +415,13 @@ export default function Profile() {
                             </div>
                           ) : (
                             <img
-                              src={imgError ? DEFAULT_API_AVATAR : (profile?.photo || DEFAULT_API_AVATAR)}
-                              alt={profile?.name}
-                              onError={() => setImgError(true)}
+                              src={(isOwnProfile ? (userProfile?.photo || profile?.photo) : profile?.photo) || DEFAULT_API_AVATAR}
+                              alt={profile?.name || "User"}
+                              onError={(e) => {
+                                if (e.target.src !== DEFAULT_API_AVATAR) {
+                                  e.target.src = DEFAULT_API_AVATAR;
+                                }
+                              }}
                               className="w-full h-full object-cover"
                             />
                           )}
@@ -581,9 +599,13 @@ export default function Profile() {
                             </div>
                           ) : (
                             <img
-                              src={imgError ? DEFAULT_API_AVATAR : (profile?.photo || DEFAULT_API_AVATAR)}
+                              src={userProfile?.photo || profile?.photo || DEFAULT_API_AVATAR}
                               alt="Profile Avatar"
-                              onError={() => setImgError(true)}
+                              onError={(e) => {
+                                if (e.target.src !== DEFAULT_API_AVATAR) {
+                                  e.target.src = DEFAULT_API_AVATAR;
+                                }
+                              }}
                               className="w-full h-full object-cover"
                             />
                           )}

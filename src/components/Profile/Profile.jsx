@@ -64,10 +64,10 @@ export default function Profile() {
       getMyProfileApi().then((res) => {
         const user = res?.data?.user || res?.user || res;
         const savedCover = localStorage.getItem("user_cover_banner");
+        const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
         const myId = user?._id || user?.id || userProfile?.id || userProfile?._id;
 
-        // Always trust the photo from the API — it is the source of truth
-        const apiPhoto = user?.photo || DEFAULT_API_AVATAR;
+        const apiPhoto = isPhotoRemoved ? DEFAULT_API_AVATAR : (user?.photo || DEFAULT_API_AVATAR);
 
         setProfile({
           ...user,
@@ -75,7 +75,7 @@ export default function Profile() {
           coverPhoto: savedCover || user?.coverPhoto || "",
         });
 
-        // Keep AuthContext in sync with the live API photo
+        // Keep AuthContext in sync with the photo
         if (setUserProfile) {
           setUserProfile((prev) => ({ ...prev, photo: apiPhoto }));
         }
@@ -223,26 +223,20 @@ export default function Profile() {
     if (!isOwnProfile) return;
     setUploading(true);
     setUploadMsg(null);
-    setImgError(false);
 
-    // Clear any stale localStorage flag
-    localStorage.removeItem("user_profile_photo_removed");
+    // Store local removal flag (since API backend does not have a photo deletion endpoint)
+    localStorage.setItem("user_profile_photo_removed", "true");
 
     try {
       await removeProfilePhotoApi();
     } catch (e) {
-      console.log("Remove photo API error:", e);
+      console.log("Remove photo API call:", e);
     }
 
-    // Refetch from API so we get the real default avatar URL the server set
-    const refreshed = await getMyProfileApi();
-    const refreshedUser = refreshed?.data?.user || refreshed?.user || null;
-    const resetPhoto = refreshedUser?.photo || DEFAULT_API_AVATAR;
-
-    setImgError(false);
-    setProfile((prev) => ({ ...prev, photo: resetPhoto }));
+    // Immediately reset profile photo to DEFAULT_API_AVATAR across application
+    setProfile((prev) => ({ ...prev, photo: DEFAULT_API_AVATAR }));
     if (setUserProfile) {
-      setUserProfile((prev) => ({ ...prev, photo: resetPhoto }));
+      setUserProfile((prev) => ({ ...prev, photo: DEFAULT_API_AVATAR }));
     }
 
     setUploading(false);

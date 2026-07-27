@@ -8,10 +8,16 @@ export const AuthContext = createContext();
 export default function AuthContextProvider({ children }) {
   const [isLoggedIn, setisLoggedIn] = useState(localStorage.getItem("token") != null);
 
-  // Start from token payload as a quick initial value (no photo in JWT usually)
   const [userProfile, setUserProfile] = useState(() => {
     const decoded = getDecodedTokenProfile();
-    return decoded ? { ...decoded, photo: decoded.photo || DEFAULT_API_AVATAR } : null;
+    const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
+    if (decoded) {
+      return {
+        ...decoded,
+        photo: isPhotoRemoved ? DEFAULT_API_AVATAR : (decoded.photo || DEFAULT_API_AVATAR),
+      };
+    }
+    return null;
   });
 
   const [isProfileLoading, setIsProfileLoading] = useState(isLoggedIn);
@@ -21,8 +27,10 @@ export default function AuthContextProvider({ children }) {
       fetchUserProfileAPI()
         .then((fetchedUser) => {
           if (fetchedUser) {
-            // Always trust the photo that comes from the API — it is the source of truth
-            const apiPhoto = fetchedUser.photo || fetchedUser.profilePic || fetchedUser.image || DEFAULT_API_AVATAR;
+            const isPhotoRemoved = localStorage.getItem("user_profile_photo_removed") === "true";
+            const apiPhoto = isPhotoRemoved
+              ? DEFAULT_API_AVATAR
+              : (fetchedUser.photo || fetchedUser.profilePic || fetchedUser.image || DEFAULT_API_AVATAR);
 
             setUserProfile((prev) => ({
               ...prev,
